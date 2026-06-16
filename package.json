@@ -1,13 +1,23 @@
 {
-  "name": "messenger-ping-test",
+  "name": "fb-messenger-bot",
   "version": "1.0.0",
-  "main": "index.js",
+  "description": "Facebook Messenger bot with /ping command",
+  "main": "src/index.js",
   "scripts": {
-    "start": "node index.js"
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js"
   },
   "dependencies": {
-    "express": "^4.21.2",
-    "fs-extra": "^11.3.0",
-    "fb-messenger-e2ee": "latest"
+    "express": "^4.18.2",
+    "fb-messenger-e2ee": "^1.0.0",
+    "better-sqlite3": "^9.4.3",
+    "dotenv": "^16.4.5",
+    "body-parser": "^1.20.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }
