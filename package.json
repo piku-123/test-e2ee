@@ -1,14 +1,13 @@
 {
-  "name": "fb-ping-bot",
+  "name": "messenger-ping-test",
   "version": "1.0.0",
-  "description": "FB Messenger E2EE Bot with Web UI",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
   },
   "dependencies": {
-    "express": "^4.18.2",
-    "@vangbanlanhat/fca-unofficial": "^1.4.5",
-    "fb-messenger-e2ee": "^0.1.5"
+    "express": "^4.21.2",
+    "fs-extra": "^11.3.0",
+    "fb-messenger-e2ee": "latest"
   }
 }
