@@ -1,63 +1,37 @@
-const express = require("express");
-const fs = require("fs-extra");
+const { FBClient } = require("fb-messenger-e2ee");
 
-const app = express();
-
-app.use(express.json({ limit: "20mb" }));
-app.use(express.static("public"));
-
-const PORT = process.env.PORT || 3000;
-
-app.post("/save-appstate", async (req, res) => {
-  try {
-    await fs.writeJson(
-      "./data/appstate.json",
-      req.body,
-      { spaces: 2 }
-    );
-
-    res.json({
-      success: true,
-      message: "AppState Saved"
-    });
-  } catch (err) {
-    res.status(500).json({
-      success: false,
-      error: err.message
-    });
-  }
+const client = new FBClient({
+  appStatePath: "./appstate.json",
+  sessionStorePath: "./session.json",
+  platform: "facebook",
 });
 
-app.listen(PORT, () => {
-  console.log(`Dashboard Running On ${PORT}`);
-});
+async function main() {
+  const { userId } = await client.connect();
+  console.log("[BOT] Logged in as:", userId);
 
-async function startBot() {
-  try {
-    const appState = await fs.readJson("./data/appstate.json");
+  await client.connectE2EE("./device-store.json", userId);
+  console.log("[BOT] E2EE ready. Listening...");
 
-    // Example Login
-    const messenger = require("fb-messenger-e2ee");
+  client.onEvent(async (event) => {
+    if (event.type === "e2ee_connected") {
+      console.log("[BOT] E2EE stream connected!");
+    }
 
-    const client = await messenger.login({
-      appState
-    });
+    if (event.type === "e2ee_message") {
+      const { threadId, senderJid, text } = event.data;
+      console.log(`[MSG] ${threadId} | ${senderJid} | "${text}"`);
 
-    console.log("Messenger Connected");
-
-    client.listen(async (msg) => {
-      if (!msg.body) return;
-
-      if (msg.body.trim() === "/ping") {
-        await client.sendMessage(
-          msg.threadID,
-          "🏓 Pong!"
-        );
+      if (text?.trim().toLowerCase() === "/ping") {
+        await client.sendMessage({ threadId, text: "🏓 Pong! Bot is alive." });
+        console.log("[BOT] Pong sent!");
       }
-    });
-  } catch (err) {
-    console.error(err);
-  }
+    }
+
+    if (event.type === "error") {
+      console.error("[ERROR]", event.data.message);
+    }
+  });
 }
 
-startBot();
+main().catch(err => { console.error("[FATAL]", err); process.exit(1); });
