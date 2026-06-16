@@ -1,49 +1,63 @@
-const express = require('express');
-const fs = require('fs');
-const { startBot } = require('./bot');
+const express = require("express");
+const fs = require("fs-extra");
 
 const app = express();
-const PORT = 3000;
 
-app.use(express.json());
-app.use(express.static('public'));
+app.use(express.json({ limit: "20mb" }));
+app.use(express.static("public"));
 
-let botRunning = false;
+const PORT = process.env.PORT || 3000;
 
-// 1. API for saving appstate
-app.post('/api/appstate', (req, res) => {
-    const { appstate } = req.body;
-    if (!appstate) {
-        return res.status(400).json({ success: false, message: 'No appstate data!' });
-    }
-    try {
-        JSON.parse(appstate); // Check if JSON is valid
-        fs.writeFileSync('appstate.json', appstate);
-        res.json({ success: true, message: '✅ appstate.json saved!' });
-    } catch (e) {
-        res.status(400).json({ success: false, message: '❌ Incorrect JSON: ' + e.message });
-    }
-});
+app.post("/save-appstate", async (req, res) => {
+  try {
+    await fs.writeJson(
+      "./data/appstate.json",
+      req.body,
+      { spaces: 2 }
+    );
 
-// 2. API to start bots
-app.post('/api/start', (req, res) => {
-    if (botRunning) {
-        return res.json({ success: true, message: '⏳ Bot is already running!' });
-    }
-    try {
-        const started = startBot();
-        if (started) {
-            botRunning = true;
-            res.json({ success: true, message: '🚀 Bot launched successfully!' });
-        } else {
-            res.status(500).json({ success: false, message: '❌ appstate.json not found!' });
-        }
-    } catch (e) {
-        res.status(500).json({ success: false, message: '❌ Error: ' + e.message });
-    }
+    res.json({
+      success: true,
+      message: "AppState Saved"
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      error: err.message
+    });
+  }
 });
 
 app.listen(PORT, () => {
-    console.log(`🌐 Web UI launched: http://localhost:${PORT}`);
-    console.log('💡 Place the HTML file in the "public" folder.');
+  console.log(`Dashboard Running On ${PORT}`);
 });
+
+async function startBot() {
+  try {
+    const appState = await fs.readJson("./data/appstate.json");
+
+    // Example Login
+    const messenger = require("fb-messenger-e2ee");
+
+    const client = await messenger.login({
+      appState
+    });
+
+    console.log("Messenger Connected");
+
+    client.listen(async (msg) => {
+      if (!msg.body) return;
+
+      if (msg.body.trim() === "/ping") {
+        await client.sendMessage(
+          msg.threadID,
+          "🏓 Pong!"
+        );
+      }
+    });
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+startBot();
