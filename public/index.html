@@ -1,76 +1,316 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>AppState Manager</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>FB Messenger Bot Dashboard</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
 
-<style>
-body{
-font-family:Arial;
-max-width:700px;
-margin:auto;
-padding:20px;
-}
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #0f1117;
+      color: #e2e8f0;
+      min-height: 100vh;
+      padding: 24px;
+    }
 
-textarea{
-width:100%;
-height:300px;
-}
+    h1 {
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: #7c3aed;
+      margin-bottom: 4px;
+    }
 
-button{
-padding:10px 20px;
-margin-top:10px;
-cursor:pointer;
-}
-</style>
+    .subtitle {
+      color: #64748b;
+      font-size: 0.85rem;
+      margin-bottom: 28px;
+    }
 
+    .card {
+      background: #1e2130;
+      border: 1px solid #2d3148;
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+
+    .card h2 {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #a78bfa;
+      margin-bottom: 16px;
+    }
+
+    label {
+      display: block;
+      font-size: 0.8rem;
+      color: #94a3b8;
+      margin-bottom: 6px;
+      margin-top: 14px;
+    }
+
+    label:first-of-type { margin-top: 0; }
+
+    input, textarea {
+      width: 100%;
+      background: #0f1117;
+      border: 1px solid #2d3148;
+      border-radius: 8px;
+      color: #e2e8f0;
+      padding: 10px 14px;
+      font-size: 0.9rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    input:focus, textarea:focus {
+      border-color: #7c3aed;
+    }
+
+    textarea { min-height: 90px; resize: vertical; font-family: monospace; font-size: 0.78rem; }
+
+    .row { display: flex; gap: 12px; margin-top: 18px; flex-wrap: wrap; }
+
+    button {
+      padding: 10px 22px;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+    }
+
+    button:active { transform: scale(0.97); }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .btn-save   { background: #2563eb; color: #fff; }
+    .btn-start  { background: #16a34a; color: #fff; }
+    .btn-stop   { background: #dc2626; color: #fff; }
+    .btn-log    { background: #334155; color: #e2e8f0; }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      padding: 5px 14px;
+      border-radius: 999px;
+      margin-bottom: 16px;
+    }
+
+    .status-badge.running { background: #14532d; color: #4ade80; }
+    .status-badge.stopped { background: #1c1917; color: #94a3b8; }
+
+    .dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    .dot.green { background: #4ade80; animation: pulse 1.5s infinite; }
+    .dot.gray  { background: #64748b; }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    #toast {
+      position: fixed;
+      bottom: 24px; right: 24px;
+      background: #1e2130;
+      border: 1px solid #4ade80;
+      color: #4ade80;
+      padding: 12px 20px;
+      border-radius: 10px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      opacity: 0;
+      transition: opacity 0.3s;
+      z-index: 999;
+    }
+
+    #toast.error { border-color: #f87171; color: #f87171; }
+    #toast.show  { opacity: 1; }
+
+    #logs-box {
+      background: #0a0c14;
+      border: 1px solid #2d3148;
+      border-radius: 8px;
+      padding: 14px;
+      font-family: monospace;
+      font-size: 0.78rem;
+      color: #94a3b8;
+      max-height: 260px;
+      overflow-y: auto;
+      line-height: 1.6;
+    }
+
+    .log-line { border-bottom: 1px solid #1a1f30; padding: 3px 0; }
+    .log-time { color: #4c5680; margin-right: 8px; }
+
+    .hint {
+      font-size: 0.75rem;
+      color: #475569;
+      margin-top: 8px;
+    }
+  </style>
 </head>
 <body>
 
-<h2>Messenger AppState</h2>
+  <h1>🤖 FB Messenger Bot</h1>
+  <p class="subtitle">Send <code>/ping</code> in your inbox — bot will reply <strong>Pong!</strong></p>
 
-<textarea id="appstate"></textarea>
+  <!-- Status -->
+  <div class="card">
+    <h2>Status</h2>
+    <div id="status-badge" class="status-badge stopped">
+      <span class="dot gray" id="dot"></span>
+      <span id="status-text">Stopped</span>
+    </div>
+    <div class="row">
+      <button class="btn-start" id="btn-start" onclick="startBot()">▶ Start Bot</button>
+      <button class="btn-stop"  id="btn-stop"  onclick="stopBot()" disabled>■ Stop Bot</button>
+      <button class="btn-log"   onclick="loadLogs()">↻ Refresh Logs</button>
+    </div>
+  </div>
 
-<br>
+  <!-- Config -->
+  <div class="card">
+    <h2>⚙️ Configuration</h2>
 
-<button onclick="saveAppState()">
-Save & Start
-</button>
+    <label>Facebook Email</label>
+    <input type="email" id="fb_email" placeholder="your@email.com" />
 
-<p id="status"></p>
+    <label>Facebook Password</label>
+    <input type="password" id="fb_password" placeholder="••••••••" />
+
+    <label>AppState JSON <span style="color:#475569">(optional — paste cookie state instead of login)</span></label>
+    <textarea id="fb_state" placeholder='[{"key":"...","value":"..."}]'></textarea>
+    <p class="hint">💡 AppState দিলে email/password লাগবে না। FBStateFetcher দিয়ে বের করা যায়।</p>
+
+    <div class="row">
+      <button class="btn-save" onclick="saveConfig()">💾 Save Config</button>
+    </div>
+  </div>
+
+  <!-- Logs -->
+  <div class="card">
+    <h2>📋 Activity Logs</h2>
+    <div id="logs-box">Loading...</div>
+  </div>
+
+  <div id="toast"></div>
 
 <script>
-async function saveAppState() {
+  // ── Load config on page open ──────────────────────────────────────────────
+  async function loadConfig() {
+    const res = await fetch("/api/config");
+    const cfg = await res.json();
+    if (cfg.fb_email)    document.getElementById("fb_email").value    = cfg.fb_email;
+    if (cfg.fb_password) document.getElementById("fb_password").value = cfg.fb_password;
+    if (cfg.fb_state)    document.getElementById("fb_state").value    = cfg.fb_state;
+  }
 
-let data;
+  // ── Save config ───────────────────────────────────────────────────────────
+  async function saveConfig() {
+    const body = {
+      fb_email:    document.getElementById("fb_email").value.trim(),
+      fb_password: document.getElementById("fb_password").value.trim(),
+      fb_state:    document.getElementById("fb_state").value.trim(),
+    };
+    const res  = await fetch("/api/config", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    const data = await res.json();
+    toast(data.message, !data.success);
+  }
 
-try{
-data = JSON.parse(
-document.getElementById("appstate").value
-);
-}catch{
-return alert("Invalid JSON");
-}
+  // ── Start bot ─────────────────────────────────────────────────────────────
+  async function startBot() {
+    document.getElementById("btn-start").disabled = true;
+    const res  = await fetch("/api/start", { method: "POST" });
+    const data = await res.json();
+    toast(data.message, !data.success);
+    if (data.success) updateStatus(true);
+    else document.getElementById("btn-start").disabled = false;
+    loadLogs();
+  }
 
-const res = await fetch(
-"/save-appstate",
-{
-method:"POST",
-headers:{
-"Content-Type":"application/json"
-},
-body:JSON.stringify(data)
-}
-);
+  // ── Stop bot ──────────────────────────────────────────────────────────────
+  async function stopBot() {
+    const res  = await fetch("/api/stop", { method: "POST" });
+    const data = await res.json();
+    toast(data.message, !data.success);
+    if (data.success) updateStatus(false);
+    loadLogs();
+  }
 
-const result = await res.json();
+  // ── Update UI status ──────────────────────────────────────────────────────
+  function updateStatus(running) {
+    const badge = document.getElementById("status-badge");
+    const dot   = document.getElementById("dot");
+    const text  = document.getElementById("status-text");
+    const btnStart = document.getElementById("btn-start");
+    const btnStop  = document.getElementById("btn-stop");
 
-document.getElementById("status").innerText =
-result.message || result.error;
+    if (running) {
+      badge.className = "status-badge running";
+      dot.className   = "dot green";
+      text.textContent = "Running";
+      btnStart.disabled = true;
+      btnStop.disabled  = false;
+    } else {
+      badge.className = "status-badge stopped";
+      dot.className   = "dot gray";
+      text.textContent = "Stopped";
+      btnStart.disabled = false;
+      btnStop.disabled  = true;
+    }
+  }
 
-location.reload();
-}
+  // ── Load logs ─────────────────────────────────────────────────────────────
+  async function loadLogs() {
+    const res  = await fetch("/api/logs");
+    const logs = await res.json();
+    const box  = document.getElementById("logs-box");
+
+    if (!logs.length) { box.innerHTML = '<span style="color:#475569">No logs yet...</span>'; return; }
+
+    box.innerHTML = logs.map(l =>
+      `<div class="log-line"><span class="log-time">${l.created_at}</span>${escHtml(l.message)}</div>`
+    ).join("");
+  }
+
+  function escHtml(str) {
+    return str.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  }
+
+  // ── Toast notification ────────────────────────────────────────────────────
+  let toastTimer;
+  function toast(msg, isError = false) {
+    const el = document.getElementById("toast");
+    el.textContent = msg;
+    el.className = "show" + (isError ? " error" : "");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.className = "", 3000);
+  }
+
+  // ── Poll status every 5s ──────────────────────────────────────────────────
+  async function pollStatus() {
+    const res  = await fetch("/api/status");
+    const data = await res.json();
+    updateStatus(data.running);
+  }
+
+  // ── Init ──────────────────────────────────────────────────────────────────
+  loadConfig();
+  loadLogs();
+  pollStatus();
+  setInterval(pollStatus, 5000);
+  setInterval(loadLogs, 8000);
 </script>
-
 </body>
 </html>
